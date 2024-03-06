@@ -1,57 +1,37 @@
-from flask import Flask, render_template, request, flash, Response
-import forms
+from flask import Flask, render_template, request, redirect, flash
 from flask_wtf.csrf import CSRFProtect
-from flask import redirect
-from flask import g 
+import forms
 from config import DevelopmentConfig
-from models import db
-from models import *
+from datetime import datetime
+from models import db, Empleados, Pedido, Venta
+from sqlalchemy import func
 
 app = Flask(__name__)
 app.config.from_object(DevelopmentConfig)
-csrf = CSRFProtect()
+crsf = CSRFProtect()
+pedidos = []
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('404.html'),404
+    return render_template('404.html'), 404
 
-
-@app.route("/index", methods = ["GET","POST"])
-def index():
-    alum_form = forms.UserForm2(request.form)
-    if request.method == "POST":
-        alum = Alumnos(nombre=alum_form.nombre.data,
-                       apaterno=alum_form.apaterno.data,
-                       email= alum_form.email.data)
-        db.session.add(alum)
-        db.session.commit()
-        
-        
-    return render_template("index.html" , form=alum_form)
-
-@app.route('/ABC_Completo', methods = ["GET","POST"])
-def ABC_Completo():
-    alum_form = forms.UserForm2(request.form)
-    alumno = Alumnos.query.all()
-    return render_template('ABC_Completo.html', alumnos=alumno)
-
-@app.route("/alumnos", methods = ["GET","POST"])
-def alum():
-    nom=''
-    apa=''
-    ama=''
-    alum_form = forms.UserForm(request.form)
-    if request.method == "POST" and alum_form.validate():
-        nom = alum_form.nombre.data
-        apa = alum_form.apaterno.data
-        ama = alum_form.amaterno.data
-        mensaje = 'Bienvenido {}'.format(nom)
-        flash(mensaje)
-        print("Nombre: {}".format(nom))
-        print("ApellidoPa: {}".format(apa))
-        print("ApellidoMa: {}".format(ama))
+# @app.route("/alumnos", methods = ["GET","POST"])
+# def alum():
+#     nom=''
+#     apa=''
+#     ama=''
+#     alum_form = forms.UserForm(request.form)
+#     if request.method == "POST" and alum_form.validate():
+#         nom = alum_form.nombre.data
+#         apa = alum_form.apaterno.data
+#         ama = alum_form.amaterno.data
+#         mensaje = 'Bienvenido {}'.format(nom)
+#         flash(mensaje)
+#         print("Nombre: {}".format(nom))
+#         print("ApellidoPa: {}".format(apa))
+#         print("ApellidoMa: {}".format(ama))
     
-    return render_template("alumnos.html", form = alum_form, nombre = nom, apePa = apa, apeMa = ama)
+#     return render_template("alumnos.html", form = alum_form, nombre = nom, apePa = apa, apeMa = ama)
 
 @app.route('/empleados', methods=['GET', 'POST'])
 def empleado():
@@ -117,72 +97,117 @@ def modificar():
         return redirect('listado_empleados')
     return render_template('modificar.html', form = emp_form)
 
-# PIZZAS----------------------------------------------------------------------------------------
-@app.route('/pizzas', methods=['GET', 'POST'])
-def cliente():
-    cliente_form = forms.Cliente(request.form)
-    pizza_form = forms.Pizzas(request.form)
-    total = 0
-    extra = 0
-    numeroPizzas = 0
-    precioVenta = 0
-    consultaVista = 'SELECT * FROM vista_detalle_pizzas'
-    if request.method == "POST" and cliente_form.validate() and pizza_form.validate():
-        # Crear instancia de Cliente
-        cliente = Cliente(nombre=cliente_form.nombre.data,
-                          direccion=cliente_form.direccion.data,
-                          telefono=cliente_form.telefono.data)
-        db.session.add(cliente)
+@app.route("/pedidos", methods=["GET", "POST"])
+def agregar_pedido():
+    pedido_form = forms.PedidoForm()
+    if request.method == "POST":
 
-        # Recolectar ingredientes seleccionados
-        ingredientes_seleccionados = []
-        if pizza_form.jamon.data:
-            ingredientes_seleccionados.append('Jamón')
-            extra += 10
-        if pizza_form.pina.data:
-            ingredientes_seleccionados.append('Piña')
-            extra += 10
-        if pizza_form.champinones.data:
-            ingredientes_seleccionados.append('Champiñones')
-            extra += 10
+        nombre = request.form['nombre']
+        direccion = request.form['direccion']
+        telefono = request.form['telefono']
+        tamano = request.form['tamano']
+        ingredientes = ', '.join(request.form.getlist('ingredientes'))  
+        no_pizzas = int(request.form['no_pizzas'])
         
-        # Convertir la lista de ingredientes a una cadena de texto
-        ingredientes_str = ', '.join(ingredientes_seleccionados)
+        costo_por_ingredientes = len(request.form.getlist('ingredientes')) * 10
 
-        # Crear instancia de Pizza
-        pizza = Pizza(tamanio=pizza_form.tamanio.data,
-                      ingredientes=ingredientes_str,  # Usar la cadena de texto de ingredientes
-                      nombre=cliente_form.nombre.data,
-                      num_pizzas=pizza_form.num_pizzas.data)
-        db.session.add(pizza)
-        
-        tamanioVenta = pizza_form.tamanio.data
-        numeroPizzas = pizza_form.num_pizzas.data
-        
-        if tamanioVenta == "chica":
-            precioVenta = 40
-        elif tamanioVenta == "mediana":
-            precioVenta = 80
-        elif tamanioVenta == "grande":
-            precioVenta = 120
-            
-        total = (precioVenta + extra) * numeroPizzas
-        
-        venta = Venta(nombre_cliente = cliente_form.nombre.data,
-                      total = total)
-        
-        db.session.add(venta)
-        
-        detalles_pizza = db.session.execute(consultaVista).fetchall()
+        if tamano == 'chica':
+            subtotal = no_pizzas * 40 + costo_por_ingredientes
+        elif tamano == 'mediana':
+            subtotal = no_pizzas * 80 + costo_por_ingredientes
+        else:
+            subtotal = no_pizzas * 120 + costo_por_ingredientes
 
-        db.session.commit()
+        idsugerido = len(pedidos) + 1
+        while idsugerido in [pedido['id'] for pedido in pedidos]:
+            idsugerido += 1
+
+        pedidos.append({
+            'id': idsugerido,
+            'nombre': nombre,
+            'direccion': direccion,
+            'telefono': telefono,
+            'tamano': tamano,
+            'ingredientes': ingredientes,
+            'no_pizzas': no_pizzas,
+            'subtotal': subtotal
+        })
+
+        return redirect("/pedidos")
+    else:
+        return render_template("pizzas.html", form=pedido_form, pedidos1=pedidos)
+
+@app.route("/quitar_pedido", methods=["POST"])
+def quitar_pedido():
+    global pedidos
+
+    pedido_id = int(request.form["pedido_id"])
+
+    pedidos = [pedido for pedido in pedidos if pedido["id"] != pedido_id]
+
+    return redirect('/pedidos')
+
+@app.route("/alerta", methods=["POST"])
+def guardar_pedido():
+    total_pedido = sum(pedido['subtotal'] for pedido in pedidos) 
+
+    return render_template("confirmar_pedido.html", total_pedido=total_pedido)
+
+@app.route("/confirmar_pedido", methods=["POST"])
+def confirmar_pedido():
+    global pedidos
+    decision = request.form.get('decision')
     
+    if decision == 'si':
+        total_venta = 0
+        for p in pedidos:
+            ped = Pedido(
+            nombre = p['nombre'],
+            direccion = p['direccion'],
+            telefono = p['telefono'],
+            tamano = p['tamano'],
+            ingredientes = p['ingredientes'],
+            no_pizzas = p['no_pizzas']
+            )
+            db.session.add(ped)
+            db.session.commit()
 
-    return render_template("pizzas.html", form=cliente_form, formPi=pizza_form, vistaPizzas = detalles_pizza)
+        total_venta = sum(pedido['subtotal'] for pedido in pedidos) 
+        venta = Venta(
+            nombre = pedidos[0]['nombre'],
+            total = total_venta
+        )
+        db.session.add(venta)
+        db.session.commit()
+        pedidos = []
+        return redirect("/ventas")
+    else:
+        return redirect("/pedidos")
 
+@app.route("/ventas", methods=["GET", "POST"])
+def mostrar_ventas():
+    ventas = []
+    total_ventas = 0 
+
+    if request.method == "POST":
+        dia_seleccionado = request.form.get('dia')
+        mes_seleccionado = request.form.get('mes')
+
+        if dia_seleccionado:
+            fecha_dia = datetime.strptime(dia_seleccionado, '%Y-%m-%d').date()
+            ventas = Venta.query.filter(func.date(Venta.fechaVenta) == fecha_dia).all()
+        elif mes_seleccionado:
+            mes_numero = int(mes_seleccionado)
+            ventas = Venta.query.filter(func.extract('month', Venta.fechaVenta) == mes_numero).all()
+        else:
+            ventas = Venta.query.all()
+
+        total_ventas = sum(venta.total for venta in ventas)
+
+    return render_template("ventas.html", ventas=ventas, total_ventas=total_ventas)
 
 if __name__ == "__main__":
-    csrf.init_app(app)
+    crsf.init_app(app)
     db.init_app(app)
     with app.app_context():
         db.create_all()

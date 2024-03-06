@@ -21,6 +21,7 @@
     </style>
 </head>
 <body>
+    </div>
     <div class="navbar navbar navbar-inverse navbar-fixed-top">
         <div class="navbar-inner">
             <div class="container">
@@ -52,41 +53,18 @@
     </div>
     <div class="container">
     <div class="row">
-<!--
-        {% for n in alumnos %}
-            <h3>{{n}}</h3>
-        {% endfor %}
-
-        <table>
-            <tr>
-                <td>datos de prueba</td>
-                <td>datos de prueba</td>
-                <td>datos de prueba</td>
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>2</td>
-                <td>3</td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-        </table>
--->
     </div>
     <div class="container">
         {%with messages = get_flashed_messages()%}
-                    {%if messages%}
-                    {%for message in messages%}
-                        <div class="alert alert-success">
-                            {{message}}
-                        </div>
-                    {%endfor%}
-                    {%endif%}
-                {%endwith%}
-    </div>
+            {%if messages%}
+                {%for message in messages%}
+                    <div class="alert alert-success">
+                        {{ message }}
+                    </div>
+                {%endfor%}
+            {%endif%}
+        {%endwith%}
+
     {%block content%}
 
     {%endblock%}
