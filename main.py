@@ -5,7 +5,7 @@ from flask import redirect
 from flask import g 
 from config import DevelopmentConfig
 from models import db
-from models import Alumnos, Empleados
+from models import *
 
 app = Flask(__name__)
 app.config.from_object(DevelopmentConfig)
@@ -116,6 +116,70 @@ def modificar():
         db.session.commit()
         return redirect('listado_empleados')
     return render_template('modificar.html', form = emp_form)
+
+# PIZZAS----------------------------------------------------------------------------------------
+@app.route('/pizzas', methods=['GET', 'POST'])
+def cliente():
+    cliente_form = forms.Cliente(request.form)
+    pizza_form = forms.Pizzas(request.form)
+    total = 0
+    extra = 0
+    numeroPizzas = 0
+    precioVenta = 0
+    consultaVista = 'SELECT * FROM vista_detalle_pizzas'
+    if request.method == "POST" and cliente_form.validate() and pizza_form.validate():
+        # Crear instancia de Cliente
+        cliente = Cliente(nombre=cliente_form.nombre.data,
+                          direccion=cliente_form.direccion.data,
+                          telefono=cliente_form.telefono.data)
+        db.session.add(cliente)
+
+        # Recolectar ingredientes seleccionados
+        ingredientes_seleccionados = []
+        if pizza_form.jamon.data:
+            ingredientes_seleccionados.append('Jamón')
+            extra += 10
+        if pizza_form.pina.data:
+            ingredientes_seleccionados.append('Piña')
+            extra += 10
+        if pizza_form.champinones.data:
+            ingredientes_seleccionados.append('Champiñones')
+            extra += 10
+        
+        # Convertir la lista de ingredientes a una cadena de texto
+        ingredientes_str = ', '.join(ingredientes_seleccionados)
+
+        # Crear instancia de Pizza
+        pizza = Pizza(tamanio=pizza_form.tamanio.data,
+                      ingredientes=ingredientes_str,  # Usar la cadena de texto de ingredientes
+                      nombre=cliente_form.nombre.data,
+                      num_pizzas=pizza_form.num_pizzas.data)
+        db.session.add(pizza)
+        
+        tamanioVenta = pizza_form.tamanio.data
+        numeroPizzas = pizza_form.num_pizzas.data
+        
+        if tamanioVenta == "chica":
+            precioVenta = 40
+        elif tamanioVenta == "mediana":
+            precioVenta = 80
+        elif tamanioVenta == "grande":
+            precioVenta = 120
+            
+        total = (precioVenta + extra) * numeroPizzas
+        
+        venta = Venta(nombre_cliente = cliente_form.nombre.data,
+                      total = total)
+        
+        db.session.add(venta)
+        
+        detalles_pizza = db.session.execute(consultaVista).fetchall()
+
+        db.session.commit()
+    
+
+    return render_template("pizzas.html", form=cliente_form, formPi=pizza_form, vistaPizzas = detalles_pizza)
+
 
 if __name__ == "__main__":
     csrf.init_app(app)

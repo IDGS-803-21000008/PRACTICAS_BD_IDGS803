@@ -1,0 +1,56 @@
+{%extends 'layout_pizzas.html'%}
+
+{%block content%}
+{% import "_macros.html" as macros %}
+<!-- <h1>Pizzas</h1> -->
+<!-- <h4><a href="/listado_empleados">Listado</a></h4> -->
+<div class="row" style="margin: 20px;">
+    <div class="col-md-6 mt-5">
+        <form action="" method="post" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            {{macros.render_field(form.nombre, class="form-controls")}}
+            {{macros.render_field(form.telefono)}}
+            {{macros.render_field(form.direccion)}}
+            {{macros.render_field(formPi.tamanio)}}
+          
+            {{macros.render_field(formPi.jamon)}}
+            {{macros.render_field(formPi.pina)}}
+            {{macros.render_field(formPi.champinones)}}
+
+            {{macros.render_field(formPi.num_pizzas)}}
+    
+            <input type="submit" name="registrar" value="registrar">
+            </form>
+    </div>
+    <div class="col-md-6 mt-5">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Tamaño</th>
+                    <th>Ingredientes</th>
+                    <th>Num Pizzas</th>
+                    <th>Total</th>
+                    
+                </tr>
+            </thead>
+            <tbody>
+                {%for vista_p in vistaPizzas%}
+                <tr>
+                    <td>{{vista_p.tamanio}}</td>
+                    <td>{{vista_p.ingredientes}}</td>
+                    <td>{{vista_p.num_pizzas}}</td>
+                    <td>{{vista_p.total}}</td>
+                    
+                    <td><a href="eliminar?id={{emp.id}}" class="btn btn-danger">Eliminar</a></td>
+                    <td><a href="modificar?id={{emp.id}}" class="btn btn-warning">Modificar</a></td>
+                </tr>
+                {%endfor%}
+            </tbody>
+        </table>
+    </div>
+
+
+</div>
+
+
+{%endblock%}
