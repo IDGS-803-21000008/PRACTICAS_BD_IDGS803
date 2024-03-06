@@ -1,0 +1,23 @@
+{% extends 'layout_pizzas.html' %}
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body d-flex flex-column align-items-center">
+                    <h1 class="card-title">Confirmación de pedido</h1>
+                    <p class="card-text">El subtotal es: <b>{{ total_pedido }}</b></p>
+                    <p class="card-text">¿Deseas proceder?</p>
+                    <form action="/confirmar_pedido" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="d-flex justify-content-center">
+                            <button type="submit" name="decision" value="si" class="btn btn-success">Confirmar</button>
+                            <button type="submit" name="decision" value="no" class="btn btn-danger ml-2">Regresar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
