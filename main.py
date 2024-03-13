@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, session
 from flask_wtf.csrf import CSRFProtect
 import forms
 from config import DevelopmentConfig
@@ -99,43 +99,64 @@ def modificar():
 
 @app.route("/pedidos", methods=["GET", "POST"])
 def agregar_pedido():
-    pedido_form = forms.PedidoForm()
+    if 'nombre' not in session:
+        session['nombre'] = ''
+    if 'direccion' not in session:
+        session['direccion'] = ''
+    if 'telefono' not in session:
+        session['telefono'] = ''
+    if 'fechaCompra' not in session:
+        session['fechaCompra'] = ''
+    
+    #-------------------
     if request.method == "POST":
+        #pedido_form = forms.PedidoForm()
+        pedido_form = forms.PedidoForm(request.form)
+        if pedido_form.validate():
+            
+            nombre = request.form['nombre']
+            direccion = request.form['direccion']
+            telefono = request.form['telefono']
+            tamano = request.form['tamano']
+            ingredientes = ', '.join(request.form.getlist('ingredientes'))  
+            no_pizzas = int(request.form['no_pizzas'])
+            fechaCompra = str(request.form['fechaCompra'])
+            
+            costo_por_ingredientes = len(request.form.getlist('ingredientes')) * 10
 
-        nombre = request.form['nombre']
-        direccion = request.form['direccion']
-        telefono = request.form['telefono']
-        tamano = request.form['tamano']
-        ingredientes = ', '.join(request.form.getlist('ingredientes'))  
-        no_pizzas = int(request.form['no_pizzas'])
-        
-        costo_por_ingredientes = len(request.form.getlist('ingredientes')) * 10
+            if tamano == 'chica':
+                subtotal = no_pizzas * 40 + (costo_por_ingredientes * no_pizzas)
+            elif tamano == 'mediana':
+                subtotal = no_pizzas * 80 + (costo_por_ingredientes * no_pizzas)
+            else:
+                subtotal = no_pizzas * 120 + (costo_por_ingredientes * no_pizzas)
 
-        if tamano == 'chica':
-            subtotal = no_pizzas * 40 + costo_por_ingredientes
-        elif tamano == 'mediana':
-            subtotal = no_pizzas * 80 + costo_por_ingredientes
-        else:
-            subtotal = no_pizzas * 120 + costo_por_ingredientes
+            idsugerido = len(pedidos) + 1
+            while idsugerido in [pedido['id'] for pedido in pedidos]:
+                idsugerido += 1
 
-        idsugerido = len(pedidos) + 1
-        while idsugerido in [pedido['id'] for pedido in pedidos]:
-            idsugerido += 1
+            pedidos.append({
+                'id': idsugerido,
+                'nombre': nombre,
+                'direccion': direccion,
+                'telefono': telefono,
+                'tamano': tamano,
+                'ingredientes': ingredientes,
+                'no_pizzas': no_pizzas,
+                'subtotal': subtotal,
+                'fechaCompra':fechaCompra
+            })
 
-        pedidos.append({
-            'id': idsugerido,
-            'nombre': nombre,
-            'direccion': direccion,
-            'telefono': telefono,
-            'tamano': tamano,
-            'ingredientes': ingredientes,
-            'no_pizzas': no_pizzas,
-            'subtotal': subtotal
-        })
-
-        return redirect("/pedidos")
+            return redirect("/pedidos")
     else:
-        return render_template("pizzas.html", form=pedido_form, pedidos1=pedidos)
+        nombre = session.get('nombre', '')
+        direccion = session.get('direccion', '')
+        telefono = session.get('telefono', '')
+        fechaCompra = session.get('fechaCompra', '')
+
+        pedido_form = forms.PedidoForm(nombre=nombre, direccion=direccion, telefono=telefono, fechaCompra=fechaCompra)
+        
+    return render_template("pizzas.html", form=pedido_form, pedidos1=pedidos)
 
 @app.route("/quitar_pedido", methods=["POST"])
 def quitar_pedido():
@@ -167,7 +188,8 @@ def confirmar_pedido():
             telefono = p['telefono'],
             tamano = p['tamano'],
             ingredientes = p['ingredientes'],
-            no_pizzas = p['no_pizzas']
+            no_pizzas = p['no_pizzas'],
+            fechaCompra = p['fechaCompra']
             )
             db.session.add(ped)
             db.session.commit()
@@ -175,7 +197,8 @@ def confirmar_pedido():
         total_venta = sum(pedido['subtotal'] for pedido in pedidos) 
         venta = Venta(
             nombre = pedidos[0]['nombre'],
-            total = total_venta
+            total = total_venta,
+            fechaVenta = pedidos[0]['fechaCompra']
         )
         db.session.add(venta)
         db.session.commit()
@@ -184,27 +207,33 @@ def confirmar_pedido():
     else:
         return redirect("/pedidos")
 
+
 @app.route("/ventas", methods=["GET", "POST"])
 def mostrar_ventas():
     ventas = []
-    total_ventas = 0 
+    total_ventas = 0
 
     if request.method == "POST":
         dia_seleccionado = request.form.get('dia')
         mes_seleccionado = request.form.get('mes')
 
         if dia_seleccionado:
-            fecha_dia = datetime.strptime(dia_seleccionado, '%Y-%m-%d').date()
-            ventas = Venta.query.filter(func.date(Venta.fechaVenta) == fecha_dia).all()
+            # Convertir el día seleccionado a su número correspondiente
+            dia_numero = int(dia_seleccionado) + 1
+            # Consultar las ventas para el día seleccionado
+            ventas = Venta.query.filter(func.DAYOFWEEK(Venta.fechaVenta) == dia_numero).all()
         elif mes_seleccionado:
             mes_numero = int(mes_seleccionado)
+            # Consultar las ventas para el mes seleccionado
             ventas = Venta.query.filter(func.extract('month', Venta.fechaVenta) == mes_numero).all()
         else:
+            # Si no se selecciona un día ni un mes, obtener todas las ventas
             ventas = Venta.query.all()
 
         total_ventas = sum(venta.total for venta in ventas)
 
     return render_template("ventas.html", ventas=ventas, total_ventas=total_ventas)
+
 
 if __name__ == "__main__":
     crsf.init_app(app)

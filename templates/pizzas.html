@@ -48,6 +48,11 @@ import render_field %}
             {{ render_field(form.no_pizzas, class="form-control") }}
           </div>
         </div>
+        <div class="row mb-3">
+          <div class="col-md-12">
+            {{ render_field(form.fechaCompra, class="form-control") }}
+          </div>
+        </div>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="row mb-3">
           <div class="col-md-12 d-flex justify-content-center">
@@ -115,6 +120,9 @@ import render_field %}
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <button type="submit" class="btn btn-success">Guardar</button>
       </form>
+    </div>
+    <div class="col-md-8 text-center mb-4">
+      <a href="ventas" class="btn btn-warning">Ver Ventas</a>
     </div>
   </div>
 </div>
